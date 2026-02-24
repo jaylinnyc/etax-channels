@@ -1,0 +1,37 @@
+{
+  "invoiceNumber": null,
+  "issueDate": "2026-02-24T10:30:00.000000",
+  "seller": {
+    "taxId": "0105536018253",
+    "name": "ABC Company Limited",
+    "address": "123 Main Road, District, Bangkok 10100",
+    "branchCode": "00000"
+  },
+  "buyer": {
+    "taxId": "0987654321012",
+    "name": "XYZ Corporation Limited",
+    "address": "456 Side Street, District, Bangkok 10200",
+    "branchCode": "00000"
+  },
+  "items": [
+    {
+      "description": "Professional Consulting Service",
+      "quantity": "2.00",
+      "unitPrice": "5000.00",
+      "discount": "500.00",
+      "lineTotal": "9500.00"
+    },
+    {
+      "description": "Software License (Annual)",
+      "quantity": "1.00",
+      "unitPrice": "12000.00",
+      "discount": "0.00",
+      "lineTotal": "12000.00"
+    }
+  ],
+  "subtotal": "21500.00",
+  "vatAmount": "1505.00",
+  "vatRate": "0.07",
+  "total": "23005.00",
+  "notes": "Payment due within 30 days. Thank you for your business."
+}
