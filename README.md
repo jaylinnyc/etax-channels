@@ -69,7 +69,7 @@ A conversational Telegram bot that collects Thai tax invoice information from us
 
 ## Development
 
-### Local Setup (without Docker)
+### Local Setup (without Docker)♣
 
 1. **Create a virtual environment:**
    ```bash

@@ -1,5 +1,6 @@
 """Telegram bot conversation handlers."""
 from decimal import Decimal
+from io import BytesIO
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ContextTypes,
@@ -23,7 +24,7 @@ from src.validators.thai_validators import (
     validate_branch_code,
     format_thai_currency
 )
-from src.services.invoice_client import invoice_service
+from src.services.invoice_client import invoice_service, settings_service
 from src.config import settings
 
 logger = structlog.get_logger()
@@ -36,11 +37,36 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     user = update.effective_user
     logger.info("start_command", user_id=user.id, username=user.username)
     
-    # Initialize conversation data
+    # Fetch company settings from API
+    success, settings_data = await settings_service.get_company_settings()
+    
+    if not success or not settings_data:
+        await update.message.reply_text(
+            "❌ Unable to fetch company settings from the server. Please try again later or contact support.",
+            parse_mode='Markdown'
+        )
+        return ConversationHandler.END
+    
+    # Extract company info
+    company_info = settings_service.extract_company_info(settings_data)
+    
+    if not company_info:
+        await update.message.reply_text(
+            "❌ Company settings are incomplete. Please configure company information in the system settings.",
+            parse_mode='Markdown'
+        )
+        return ConversationHandler.END
+    
+    # Initialize conversation data with seller info pre-populated
     conversation_data = ConversationData(
         user_id=user.id,
         username=user.username,
-        current_state=str(ConversationState.START)
+        current_state=str(ConversationState.BUYER_TAX_ID),
+        seller_tax_id=company_info["tax_id"],
+        seller_name=company_info["name"],
+        seller_address=company_info["address"],
+        seller_branch=company_info["branch_code"],
+        seller_postal_code=company_info["postal_code"]
     )
     
     await repository.save_conversation_state(user.id, conversation_data)
@@ -50,14 +76,14 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         parse_mode='Markdown'
     )
     
-    # Move to first question
-    step, total = get_state_progress(ConversationState.SELLER_TAX_ID)
+    # Move directly to buyer information (skip seller questions)
+    step, total = get_state_progress(ConversationState.BUYER_TAX_ID)
     await update.message.reply_text(
-        messages.SELLER_TAX_ID_PROMPT.format(step=step, total=total),
+        messages.BUYER_TAX_ID_PROMPT.format(step=step, total=total),
         parse_mode='Markdown'
     )
     
-    return ConversationState.SELLER_TAX_ID
+    return ConversationState.BUYER_TAX_ID
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -649,9 +675,9 @@ async def handle_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Confirm - generate invoice
     try:
         invoice = conversation.to_invoice()
-        await query.edit_message_text("⏳ Generating invoice, please wait...")
+        await query.edit_message_text("⏳ Creating document, please wait...")
         
-        # Call invoice service
+        # Call invoice service (creates and signs document)
         success, response = await invoice_service.generate_invoice(invoice)
         
         if success:
@@ -659,15 +685,57 @@ async def handle_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE
             await repository.save_invoice_history(user.id, invoice, response)
             await repository.delete_conversation(user.id)
             
-            response_info = f"Response: {response.get('message', 'Invoice generated successfully')}"
+            document_id = response.get('document_id', 'N/A')
+            invoice_number = response.get('invoice_number', 'N/A')
+            
+            # Send success message
             await query.message.reply_text(
-                messages.INVOICE_GENERATED_SUCCESS.format(response_info=response_info),
+                messages.INVOICE_GENERATED_SUCCESS.format(
+                    response_info=f"✅ Document created and signed successfully\n📝 Invoice Number: {invoice_number}\n🆔 Document ID: {document_id}"
+                ),
                 parse_mode='Markdown'
             )
+            
+            # Download and send PDF
+            try:
+                await query.message.reply_text("📄 Preparing your invoice PDF...")
+                
+                pdf_success, pdf_bytes = await invoice_service.download_pdf(document_id)
+                
+                if pdf_success and pdf_bytes:
+                    # Send PDF as document using BytesIO
+                    pdf_file = BytesIO(pdf_bytes)
+                    pdf_file.name = f"{invoice_number}.pdf"
+                    
+                    await context.bot.send_document(
+                        chat_id=user.id,
+                        document=pdf_file,
+                        filename=f"{invoice_number}.pdf",
+                        caption=f"📄 Invoice: {invoice_number}",
+                    )
+                    logger.info("pdf_sent_successfully", user_id=user.id, document_id=document_id)
+                else:
+                    await query.message.reply_text(
+                        "⚠️ PDF download failed. You can download it later from the web interface.",
+                        parse_mode='Markdown'
+                    )
+                    logger.warning("pdf_download_failed", user_id=user.id, document_id=document_id)
+                    
+            except Exception as pdf_error:
+                logger.error("pdf_send_error", user_id=user.id, error=str(pdf_error))
+                await query.message.reply_text(
+                    "⚠️ Failed to send PDF. You can download it from the web interface.",
+                    parse_mode='Markdown'
+                )
         else:
             error_msg = response.get('error', 'Unknown error occurred')
+            error_details = response.get('details', {})
+            full_error = f"{error_msg}"
+            if isinstance(error_details, dict) and error_details.get('message'):
+                full_error += f"\nDetails: {error_details['message']}"
+            
             await query.message.reply_text(
-                messages.INVOICE_GENERATION_ERROR.format(error_message=error_msg),
+                messages.INVOICE_GENERATION_ERROR.format(error_message=full_error),
                 parse_mode='Markdown'
             )
         
@@ -689,18 +757,7 @@ def get_conversation_handler() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[CommandHandler("start", start_command)],
         states={
-            ConversationState.SELLER_TAX_ID: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_seller_tax_id)
-            ],
-            ConversationState.SELLER_NAME: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_seller_name)
-            ],
-            ConversationState.SELLER_ADDRESS: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_seller_address)
-            ],
-            ConversationState.SELLER_BRANCH: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_seller_branch)
-            ],
+            # Seller info handlers removed - now auto-populated from settings API
             ConversationState.BUYER_TAX_ID: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buyer_tax_id)
             ],

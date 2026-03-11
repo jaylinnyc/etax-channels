@@ -1,4 +1,6 @@
 """Configuration management using Pydantic settings."""
+from pydantic import Field
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,7 +16,8 @@ class Settings(BaseSettings):
     
     # Telegram Bot Configuration
     telegram_bot_token: str
-    
+    internal_api_key: str = Field(..., env="INTERNAL_API_KEY")
+
     # Redis Configuration
     redis_url: str = "redis://localhost:6379/0"
     redis_host: str = "localhost"
@@ -23,6 +26,7 @@ class Settings(BaseSettings):
     
     # Invoice Service Configuration
     invoice_service_url: str = "http://etax:9443/api/v1/xml"
+    settings_service_url: str
     
     # Bot Configuration
     conversation_timeout: int = 3600  # 1 hour in seconds

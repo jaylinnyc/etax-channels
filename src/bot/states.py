@@ -36,12 +36,15 @@ class ConversationState(IntEnum):
 
 
 # State flow mapping
+# Note: Seller states are skipped as seller info is auto-populated from settings API
 STATE_FLOW = {
-    ConversationState.START: ConversationState.SELLER_TAX_ID,
+    ConversationState.START: ConversationState.BUYER_TAX_ID,
+    # Seller states kept for backwards compatibility but not used in main flow
     ConversationState.SELLER_TAX_ID: ConversationState.SELLER_NAME,
     ConversationState.SELLER_NAME: ConversationState.SELLER_ADDRESS,
     ConversationState.SELLER_ADDRESS: ConversationState.SELLER_BRANCH,
     ConversationState.SELLER_BRANCH: ConversationState.BUYER_TAX_ID,
+    # Active flow starts here
     ConversationState.BUYER_TAX_ID: ConversationState.BUYER_NAME,
     ConversationState.BUYER_NAME: ConversationState.BUYER_ADDRESS,
     ConversationState.BUYER_ADDRESS: ConversationState.BUYER_BRANCH,
@@ -78,10 +81,8 @@ def get_state_progress(current_state: ConversationState) -> tuple[int, int]:
         Tuple of (current_step, total_steps)
     """
     # Define major steps for progress tracking
+    # Note: Seller info is now auto-populated from settings API
     major_steps = [
-        ConversationState.SELLER_TAX_ID,
-        ConversationState.SELLER_NAME,
-        ConversationState.SELLER_ADDRESS,
         ConversationState.BUYER_TAX_ID,
         ConversationState.BUYER_NAME,
         ConversationState.BUYER_ADDRESS,

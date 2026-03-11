@@ -11,6 +11,7 @@ class SellerInfo(BaseModel):
     name: str = Field(..., min_length=1, max_length=500, description="Business name")
     address: str = Field(..., min_length=1, max_length=1000, description="Business address")
     branch_code: str = Field(default="00000", description="Branch code (00000 for head office)")
+    postal_code: str = Field(default="10000", description="5-digit postal code")
     
     @field_validator('tax_id')
     @classmethod
@@ -27,6 +28,7 @@ class BuyerInfo(BaseModel):
     name: str = Field(..., min_length=1, max_length=500, description="Business name")
     address: str = Field(..., min_length=1, max_length=1000, description="Business address")
     branch_code: str = Field(default="00000", description="Branch code (00000 for head office)")
+    postal_code: str = Field(default="10000", description="5-digit postal code")
     
     @field_validator('tax_id')
     @classmethod
@@ -88,40 +90,53 @@ class Invoice(BaseModel):
         return self.subtotal + self.vat_amount
     
     def to_service_format(self) -> dict:
-        """Convert invoice to format expected by invoice generation service.
+        """Convert invoice to InvoiceDto format for signing service /documents/create endpoint.
         
-        Note: This is a generic format. Adjust based on actual service requirements.
+        Matches the structure expected by com.nexus.etax.dto.InvoiceDto
         """
+        # Format date as YYYY-MM-DD for LocalDate
+        issue_date_str = self.issue_date.strftime("%Y-%m-%d")
+        
         return {
-            "invoiceNumber": self.invoice_number,
-            "issueDate": self.issue_date.isoformat(),
+            "documentType": "388",  # TaxInvoice type code
+            "documentNumber": self.invoice_number or f"INV-{int(self.issue_date.timestamp())}",
+            "issueDate": issue_date_str,
             "seller": {
-                "taxId": self.seller.tax_id,
                 "name": self.seller.name,
-                "address": self.seller.address,
-                "branchCode": self.seller.branch_code
+                "taxId": self.seller.tax_id,
+                "branchCode": self.seller.branch_code,
+                "address": {
+                    "lineOne": self.seller.address,
+                    "postcodeCode": self.seller.postal_code,
+                    "countryId": "TH"
+                }
             },
             "buyer": {
-                "taxId": self.buyer.tax_id,
                 "name": self.buyer.name,
-                "address": self.buyer.address,
-                "branchCode": self.buyer.branch_code
-            },
-            "items": [
-                {
-                    "description": item.description,
-                    "quantity": str(item.quantity),
-                    "unitPrice": str(item.unit_price),
-                    "discount": str(item.discount),
-                    "lineTotal": str(item.line_total)
+                "taxId": self.buyer.tax_id,
+                "branchCode": self.buyer.branch_code,
+                "address": {
+                    "lineOne": self.buyer.address,
+                    "postcodeCode": self.buyer.postal_code,
+                    "countryId": "TH"
                 }
-                for item in self.items
+            },
+            "lineItems": [
+                {
+                    "lineId": str(idx + 1),
+                    "name": item.description,
+                    "description": item.description,
+                    "quantity": float(item.quantity),
+                    "unitCode": "C62",  # Unit (UNECE code)
+                    "unitPrice": float(item.unit_price),
+                    "discountAmount": float(item.discount),
+                    "vatRate": 7.00
+                }
+                for idx, item in enumerate(self.items)
             ],
-            "subtotal": str(self.subtotal),
-            "vatAmount": str(self.vat_amount),
-            "vatRate": "0.07",
-            "total": str(self.total),
-            "notes": self.notes
+            "currencyCode": "THB",
+            "vatRate": 7.00,
+            "noteContent": self.notes
         }
 
 
@@ -136,11 +151,13 @@ class ConversationData(BaseModel):
     seller_name: Optional[str] = None
     seller_address: Optional[str] = None
     seller_branch: str = "00000"
+    seller_postal_code: str = "10000"
     
     buyer_tax_id: Optional[str] = None
     buyer_name: Optional[str] = None
     buyer_address: Optional[str] = None
     buyer_branch: str = "00000"
+    buyer_postal_code: str = "10000"
     
     items: List[dict] = Field(default_factory=list)
     current_item: dict = Field(default_factory=dict)
@@ -155,13 +172,15 @@ class ConversationData(BaseModel):
                 tax_id=self.seller_tax_id,
                 name=self.seller_name,
                 address=self.seller_address,
-                branch_code=self.seller_branch
+                branch_code=self.seller_branch,
+                postal_code=self.seller_postal_code
             ),
             buyer=BuyerInfo(
                 tax_id=self.buyer_tax_id,
                 name=self.buyer_name,
                 address=self.buyer_address,
-                branch_code=self.buyer_branch
+                branch_code=self.buyer_branch,
+                postal_code=self.buyer_postal_code
             ),
             items=[InvoiceItem(**item) for item in self.items],
             notes=self.notes

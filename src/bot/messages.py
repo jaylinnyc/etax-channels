@@ -26,13 +26,13 @@ HELP_MESSAGE = """
 /help - Show this help message
 
 *Invoice Creation Flow:*
-1️⃣ Seller Information (Tax ID, Name, Address, Branch)
-2️⃣ Buyer Information (Tax ID, Name, Address, Branch)
-3️⃣ Invoice Items (Description, Quantity, Price, Discount)
-4️⃣ Additional Notes (optional)
-5️⃣ Review and Confirm
+1️⃣ Buyer Information (Tax ID, Name, Address, Branch)
+2️⃣ Invoice Items (Description, Quantity, Price, Discount)
+3️⃣ Additional Notes (optional)
+4️⃣ Review and Confirm
 
 *Tips:*
+• Seller information is automatically loaded from system settings
 • Thai Tax ID must be 13 digits
 • Branch code is 5 digits (use 00000 for head office)
 • Prices are in Thai Baht (THB)
@@ -45,7 +45,9 @@ START_INVOICE_MESSAGE = """
 
 I'll guide you through each step. You can use /cancel at any time to stop.
 
-Let's begin with the seller information.
+ℹ️ Seller information will be automatically loaded from your company settings.
+
+Let's begin with the buyer information.
 """
 
 # Seller information prompts

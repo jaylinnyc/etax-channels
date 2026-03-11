@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # Redis service for conversation state management
@@ -31,15 +31,17 @@ services:
         condition: service_healthy
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - INTERNAL_API_KEY=${SIGNING_SERVICE_API_KEY}
       - REDIS_URL=redis://redis:6379/0
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_DB=0
       - INVOICE_SERVICE_URL=${INVOICE_SERVICE_URL:-http://etax:9443/api/v1/xml}
+      - SETTINGS_SERVICE_URL=${SETTINGS_SERVICE_URL:-http://etax:9443/api/v1/settings}
       - CONVERSATION_TIMEOUT=${CONVERSATION_TIMEOUT:-3600}
       - INVOICE_HISTORY_TTL=${INVOICE_HISTORY_TTL:-86400}
       - MAX_RETRY_ATTEMPTS=${MAX_RETRY_ATTEMPTS:-3}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
     networks:
       - etax-network
     logging:
@@ -50,7 +52,8 @@ services:
 
 networks:
   etax-network:
-    driver: bridge
+    external: true
+    name: etax-network
 
 volumes:
   redis_data:
