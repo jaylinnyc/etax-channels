@@ -44,10 +44,6 @@ START_INVOICE_MESSAGE = """
 📝 *Let's create a new tax invoice!*
 
 I'll guide you through each step. You can use /cancel at any time to stop.
-
-ℹ️ Seller information will be automatically loaded from your company settings.
-
-Let's begin with the buyer information.
 """
 
 # Seller information prompts
@@ -86,72 +82,68 @@ Example: 00000 (head office) or 00001, 00002, etc.
 
 # Buyer information prompts
 BUYER_TAX_ID_PROMPT = """
-👤 *Step {step}/{total}: Buyer Tax ID*
+👤 *Step {step}/{total}: Tax ID*
 
-Please enter the buyer's 13-digit Thai Tax ID.
+Please enter your 13-digit Tax ID.
 
 Example: 9876543210987
 """
 
 BUYER_NAME_PROMPT = """
-👤 *Step {step}/{total}: Buyer Name*
+👤 *Step {step}/{total}: Your Name*
 
-Please enter the buyer's business name.
+Please enter your name or business name.
 
-Example: XYZ Corporation Limited
+Example: John Doe or XYZ Corporation Limited
 """
 
 BUYER_ADDRESS_PROMPT = """
-👤 *Step {step}/{total}: Buyer Address*
+👤 *Step {step}/{total}: Your Address*
 
-Please enter the buyer's complete business address.
+Please enter your address.
 
-Example: 456 Side Street, District, Bangkok 10200
+Example: 456 Side Street, District, Bangkok
 """
 
-BUYER_BRANCH_PROMPT = """
-👤 *Step {step}/{total}: Buyer Branch Code*
+BUYER_POSTAL_CODE_PROMPT = """
+👤 *Step {step}/{total}: Postal Code*
 
-Please enter the buyer's 5-digit branch code.
-Use *00000* for head office.
+Please enter your postal code (5 digits).
 
-Example: 00000 (head office) or 00001, 00002, etc.
+Example: 10200
 """
 
 # Item information prompts
 ITEM_DESCRIPTION_PROMPT = """
-📦 *Step {step}/{total}: Item Description*
+📦 *Step {step}/{total}: Product or Service*
 
-Please enter the description of the item or service.
+What is the name of the product or service?
 
 Example: Professional Consulting Service
 """
 
 ITEM_QUANTITY_PROMPT = """
-📦 *Item Quantity*
+📦 *Quantity*
 
-Please enter the quantity.
+How many?
 
 Example: 1 or 2.5 or 10
 """
 
 ITEM_PRICE_PROMPT = """
-💰 *Item Unit Price*
+💰 *Price per Unit*
 
-Please enter the price per unit in Thai Baht (THB).
+Enter the price (in Baht).
 
 Example: 1000 or 1500.50
 """
 
 ITEM_DISCOUNT_PROMPT = """
-🏷️ *Item Discount (Optional)*
+🏷️ *Discount (Optional)*
 
-Please enter the discount amount in Thai Baht (THB).
-Enter 0 for no discount.
+Enter discount amount in Baht, or 0 for no discount.
 
 Example: 0 or 100.00
-
-Maximum discount for this item: {max_discount} THB
 """
 
 ADD_MORE_ITEMS_PROMPT = """
@@ -170,18 +162,18 @@ Would you like to add another item?
 NOTES_PROMPT = """
 📝 *Step {step}/{total}: Additional Notes (Optional)*
 
-You can add any additional notes or special instructions for this invoice.
+Any special notes?
 
-Type your notes or send /skip to continue without notes.
+Type your notes or send /skip to continue.
 """
 
 # Confirmation prompt
 CONFIRM_PROMPT = """
-📋 *Step {step}/{total}: Please Review Your Invoice*
+📋 *Step {step}/{total}: Review Your Invoice*
 
 {invoice_summary}
 
-Is this information correct?
+Everything look good?
 
 Click *Confirm* to generate the invoice or *Cancel* to start over.
 """
@@ -220,7 +212,7 @@ INVALID_TAX_ID_ERROR = """
 
 {error_message}
 
-Please enter a valid 13-digit Thai Tax ID.
+Please enter a valid 13-digit Tax ID.
 Example: 1234567890123
 
 Attempt {attempt}/{max_attempts}
@@ -248,13 +240,13 @@ Example: 1 or 2.5
 Attempt {attempt}/{max_attempts}
 """
 
-INVALID_BRANCH_CODE_ERROR = """
-❌ *Invalid Branch Code*
+INVALID_POSTAL_CODE_ERROR = """
+❌ *Invalid Postal Code*
 
 {error_message}
 
-Please enter a valid 5-digit branch code.
-Example: 00000 (for head office)
+Please enter a valid 5-digit postal code.
+Example: 10200
 
 Attempt {attempt}/{max_attempts}
 """
@@ -282,19 +274,20 @@ def format_invoice_summary(invoice: Invoice, items: List[dict]) -> str:
     lines = []
     
     # Seller info
-    lines.append("*🏢 Seller Information:*")
+    lines.append("*🏬 From (Seller):*")
     lines.append(f"Tax ID: {invoice.seller.tax_id}")
     lines.append(f"Name: {invoice.seller.name}")
     lines.append(f"Address: {invoice.seller.address}")
+    lines.append(f"Postal Code: {invoice.seller.postal_code}")
     lines.append(f"Branch: {invoice.seller.branch_code}")
     lines.append("")
     
     # Buyer info
-    lines.append("*👤 Buyer Information:*")
+    lines.append("*👤 To (You):*")
     lines.append(f"Tax ID: {invoice.buyer.tax_id}")
     lines.append(f"Name: {invoice.buyer.name}")
     lines.append(f"Address: {invoice.buyer.address}")
-    lines.append(f"Branch: {invoice.buyer.branch_code}")
+    lines.append(f"Postal Code: {invoice.buyer.postal_code}")
     lines.append("")
     
     # Items

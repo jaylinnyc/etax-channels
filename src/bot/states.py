@@ -18,6 +18,7 @@ class ConversationState(IntEnum):
     BUYER_TAX_ID = auto()
     BUYER_NAME = auto()
     BUYER_ADDRESS = auto()
+    BUYER_POSTAL_CODE = auto()
     BUYER_BRANCH = auto()
     
     # Invoice items
@@ -47,8 +48,9 @@ STATE_FLOW = {
     # Active flow starts here
     ConversationState.BUYER_TAX_ID: ConversationState.BUYER_NAME,
     ConversationState.BUYER_NAME: ConversationState.BUYER_ADDRESS,
-    ConversationState.BUYER_ADDRESS: ConversationState.BUYER_BRANCH,
-    ConversationState.BUYER_BRANCH: ConversationState.ITEM_DESCRIPTION,
+    ConversationState.BUYER_ADDRESS: ConversationState.BUYER_POSTAL_CODE,
+    ConversationState.BUYER_POSTAL_CODE: ConversationState.ITEM_DESCRIPTION,
+    ConversationState.BUYER_BRANCH: ConversationState.ITEM_DESCRIPTION,  # Kept for backwards compatibility
     ConversationState.ITEM_DESCRIPTION: ConversationState.ITEM_QUANTITY,
     ConversationState.ITEM_QUANTITY: ConversationState.ITEM_PRICE,
     ConversationState.ITEM_PRICE: ConversationState.ITEM_DISCOUNT,
@@ -82,10 +84,12 @@ def get_state_progress(current_state: ConversationState) -> tuple[int, int]:
     """
     # Define major steps for progress tracking
     # Note: Seller info is now auto-populated from settings API
+    # Note: Branch code is always 00000 (head office) for buyers
     major_steps = [
         ConversationState.BUYER_TAX_ID,
         ConversationState.BUYER_NAME,
         ConversationState.BUYER_ADDRESS,
+        ConversationState.BUYER_POSTAL_CODE,
         ConversationState.ITEM_DESCRIPTION,
         ConversationState.ITEM_QUANTITY,
         ConversationState.ITEM_PRICE,

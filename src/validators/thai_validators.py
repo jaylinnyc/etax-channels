@@ -141,6 +141,26 @@ def validate_branch_code(branch_code: str) -> Tuple[bool, str]:
     return True, ""
 
 
+def validate_postal_code(postal_code: str) -> Tuple[bool, str]:
+    """Validate Thai postal code.
+    
+    Thai postal code is 5 digits.
+    
+    Args:
+        postal_code: Postal/ZIP code
+        
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if len(postal_code) != 5:
+        return False, "Postal code must be exactly 5 digits"
+    
+    if not postal_code.isdigit():
+        return False, "Postal code must contain only digits"
+    
+    return True, ""
+
+
 def format_thai_currency(amount: Decimal) -> str:
     """Format amount as Thai currency with thousand separators.
     

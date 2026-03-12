@@ -12,6 +12,11 @@ class SellerInfo(BaseModel):
     address: str = Field(..., min_length=1, max_length=1000, description="Business address")
     branch_code: str = Field(default="00000", description="Branch code (00000 for head office)")
     postal_code: str = Field(default="10000", description="5-digit postal code")
+    email: Optional[str] = Field(default=None, description="Email address")
+    building_number: Optional[str] = Field(default=None, description="Building number")
+    city_sub_division_id: Optional[str] = Field(default=None, description="Sub-district code")
+    city_id: Optional[str] = Field(default=None, description="District code")
+    country_sub_division_id: Optional[str] = Field(default=None, description="Province code")
     
     @field_validator('tax_id')
     @classmethod
@@ -105,10 +110,15 @@ class Invoice(BaseModel):
                 "name": self.seller.name,
                 "taxId": self.seller.tax_id,
                 "branchCode": self.seller.branch_code,
+                "email": self.seller.email,
                 "address": {
                     "lineOne": self.seller.address,
                     "postcodeCode": self.seller.postal_code,
-                    "countryId": "TH"
+                    "countryId": "TH",
+                    "buildingNumber": self.seller.building_number,
+                    "citySubDivisionId": self.seller.city_sub_division_id,
+                    "cityId": self.seller.city_id,
+                    "countrySubDivisionId": self.seller.country_sub_division_id
                 }
             },
             "buyer": {
@@ -152,6 +162,11 @@ class ConversationData(BaseModel):
     seller_address: Optional[str] = None
     seller_branch: str = "00000"
     seller_postal_code: str = "10000"
+    seller_email: Optional[str] = None
+    seller_building_number: Optional[str] = None
+    seller_city_sub_division_id: Optional[str] = None
+    seller_city_id: Optional[str] = None
+    seller_country_sub_division_id: Optional[str] = None
     
     buyer_tax_id: Optional[str] = None
     buyer_name: Optional[str] = None
@@ -173,7 +188,12 @@ class ConversationData(BaseModel):
                 name=self.seller_name,
                 address=self.seller_address,
                 branch_code=self.seller_branch,
-                postal_code=self.seller_postal_code
+                postal_code=self.seller_postal_code,
+                email=self.seller_email,
+                building_number=self.seller_building_number,
+                city_sub_division_id=self.seller_city_sub_division_id,
+                city_id=self.seller_city_id,
+                country_sub_division_id=self.seller_country_sub_division_id
             ),
             buyer=BuyerInfo(
                 tax_id=self.buyer_tax_id,

@@ -84,9 +84,14 @@ class SettingsServiceClient(BaseServiceClient):
             company_info = {
                 "tax_id": company_dict.get("company.taxId", ""),
                 "name": company_dict.get("company.name", ""),
+                "email": company_dict.get("company.email", ""),
                 "address": company_dict.get("company.address", ""),
                 "branch_code": company_dict.get("company.branchCode", "00000"),
                 "postal_code": company_dict.get("company.postalCode", "10000"),  # Default to Bangkok if not set
+                "city_sub_division_id": company_dict.get("company.subDivisionCode", ""),
+                "city_id": company_dict.get("company.districtCode", ""),
+                "country_sub_division_id": company_dict.get("company.provinceCode", ""),
+                "building_number": company_dict.get("company.buildingNumber", ""),
             }
             
             if not all([company_info["tax_id"], company_info["name"], company_info["address"]]):

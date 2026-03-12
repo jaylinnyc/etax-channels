@@ -22,6 +22,7 @@ from src.validators.thai_validators import (
     validate_quantity,
     validate_discount,
     validate_branch_code,
+    validate_postal_code,
     format_thai_currency
 )
 from src.services.invoice_client import invoice_service, settings_service
@@ -66,7 +67,12 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         seller_name=company_info["name"],
         seller_address=company_info["address"],
         seller_branch=company_info["branch_code"],
-        seller_postal_code=company_info["postal_code"]
+        seller_postal_code=company_info["postal_code"],
+        seller_email=company_info.get("email"),
+        seller_building_number=company_info.get("building_number"),
+        seller_city_sub_division_id=company_info.get("city_sub_division_id"),
+        seller_city_id=company_info.get("city_id"),
+        seller_country_sub_division_id=company_info.get("country_sub_division_id")
     )
     
     await repository.save_conversation_state(user.id, conversation_data)
@@ -324,16 +330,61 @@ async def handle_buyer_address(update: Update, context: ContextTypes.DEFAULT_TYP
         return ConversationHandler.END
     
     conversation.buyer_address = address
-    conversation.current_state = str(ConversationState.BUYER_BRANCH)
+    conversation.current_state = str(ConversationState.BUYER_POSTAL_CODE)
     await repository.save_conversation_state(user.id, conversation)
     
-    step, total = get_state_progress(ConversationState.BUYER_BRANCH)
+    step, total = get_state_progress(ConversationState.BUYER_POSTAL_CODE)
     await update.message.reply_text(
-        messages.BUYER_BRANCH_PROMPT.format(step=step, total=total),
+        messages.BUYER_POSTAL_CODE_PROMPT.format(step=step, total=total),
         parse_mode='Markdown'
     )
     
-    return ConversationState.BUYER_BRANCH
+    return ConversationState.BUYER_POSTAL_CODE
+
+
+async def handle_buyer_postal_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle buyer postal code input."""
+    user = update.effective_user
+    postal_code = update.message.text.strip()
+    
+    is_valid, error_msg = validate_postal_code(postal_code)
+    
+    conversation = await repository.get_conversation_state(user.id)
+    if not conversation:
+        await update.message.reply_text("Session expired. Please /start again.")
+        return ConversationHandler.END
+    
+    if not is_valid:
+        conversation.retry_count += 1
+        if conversation.retry_count >= settings.max_retry_attempts:
+            await repository.delete_conversation(user.id)
+            await update.message.reply_text(messages.MAX_RETRIES_EXCEEDED, parse_mode='Markdown')
+            return ConversationHandler.END
+        
+        await repository.save_conversation_state(user.id, conversation)
+        await update.message.reply_text(
+            messages.INVALID_POSTAL_CODE_ERROR.format(
+                error_message=error_msg,
+                attempt=conversation.retry_count,
+                max_attempts=settings.max_retry_attempts
+            ),
+            parse_mode='Markdown'
+        )
+        return ConversationState.BUYER_POSTAL_CODE
+    
+    conversation.buyer_postal_code = postal_code
+    conversation.buyer_branch = "00000"  # Always head office for buyers
+    conversation.retry_count = 0
+    conversation.current_state = str(ConversationState.ITEM_DESCRIPTION)
+    await repository.save_conversation_state(user.id, conversation)
+    
+    step, total = get_state_progress(ConversationState.ITEM_DESCRIPTION)
+    await update.message.reply_text(
+        messages.ITEM_DESCRIPTION_PROMPT.format(step=step, total=total),
+        parse_mode='Markdown'
+    )
+    
+    return ConversationState.ITEM_DESCRIPTION
 
 
 async def handle_buyer_branch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -758,6 +809,7 @@ def get_conversation_handler() -> ConversationHandler:
         entry_points=[CommandHandler("start", start_command)],
         states={
             # Seller info handlers removed - now auto-populated from settings API
+            # Branch code handler removed - always 00000 (head office) for buyers
             ConversationState.BUYER_TAX_ID: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buyer_tax_id)
             ],
@@ -767,8 +819,8 @@ def get_conversation_handler() -> ConversationHandler:
             ConversationState.BUYER_ADDRESS: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buyer_address)
             ],
-            ConversationState.BUYER_BRANCH: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buyer_branch)
+            ConversationState.BUYER_POSTAL_CODE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buyer_postal_code)
             ],
             ConversationState.ITEM_DESCRIPTION: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_item_description)
